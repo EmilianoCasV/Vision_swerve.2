@@ -20,6 +20,7 @@ import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.SubsystemBase;
 import edu.wpi.first.wpilibj2.command.sysid.SysIdRoutine.Config;
 import frc.robot.LimelightHelpers;
+import frc.robot.RobotContainer;
 import frc.robot.LimelightHelpers;
 
 import frc.robot.Constants.AutonConstants;
@@ -27,6 +28,7 @@ import java.io.File;
 import java.util.function.DoubleSupplier;
 
 import com.ctre.phoenix6.mechanisms.swerve.SwerveModule;
+import com.ctre.phoenix6.mechanisms.swerve.SwerveRequest.RobotCentric;
 import com.pathplanner.lib.auto.AutoBuilder;
 import com.pathplanner.lib.util.HolonomicPathFollowerConfig;
 import com.pathplanner.lib.util.ReplanningConfig;
@@ -48,14 +50,14 @@ public class SwerveSubsystem extends SubsystemBase
    * Swerve drive object.
    */
   private final SwerveDrive swerveDrive;
-
+ 
   /**
    * Maximum speed of the robot in meters per second, used to limit acceleration.
    */
   public        double      maximumSpeed = Units.feetToMeters(15.68);
-  private final PIDController controller = new PIDController(1, 0, 0);
-  private final PIDController controller_range = new PIDController(1,0, 0);
-
+  private final PIDController controller = new PIDController(2.1, 0,0.01 ); // P:3
+  private final PIDController forwardPidController = new PIDController(0.1, 0, 0);
+  
   /**
    * Initialize {@link SwerveDrive} with the directory provided.
    *
@@ -113,6 +115,7 @@ public class SwerveSubsystem extends SubsystemBase
    */
   public Command driveCommandu(DoubleSupplier translationX, DoubleSupplier translationY, DoubleSupplier angularRotationX)
   {
+
     return run(() -> {
       // Make the robot move
       swerveDrive.drive(new Translation2d(Math.pow(translationX.getAsDouble(), 3) * swerveDrive.getMaximumVelocity(),
@@ -401,19 +404,35 @@ public void limelightOdometry(){
   }
 
   public Command autoAlign(){
+    controller.enableContinuousInput(-Math.PI, Math.PI);
   
-    return this.driveCommandu(()->0, ()->0, ()-> controller.calculate(Units.degreesToRadians(LimelightHelpers.getTX("limelight")), 0.0));
+    return this.driveCommandu(()->0, ()->0, ()-> controller.calculate(Units.degreesToRadians(LimelightHelpers.getTX("limelight")), 0));
   }
 
-  public Command autoRange(){
-    return this.driveCommandu(()->0,()-> controller_range.calculate(Units.degreesToRadians(LimelightHelpers.getTX("limelight")), 0.0), ()->0);
+  public double rot_follow(){
+    final var rot_limelight = controller.calculate(Units.degreesToRadians(LimelightHelpers.getTX("limelight")),0);
+    var rot = rot_limelight;
+    return rot;
   }
-  /*  This is a experiment 
-  public Command rangeTest(){
-    double Kp = 0.1;
-    double targetingFowardSpeed = LimelightHelpers.getTY("limelight")*Kp;
+
+ 
+   
+  public double autoforward(){
+    var  targetingFowardSpeed = forwardPidController.calculate(Units.degreesToRadians(LimelightHelpers.getTY("limelight")), 0.5);
+    targetingFowardSpeed *=maximumSpeed;
     targetingFowardSpeed *= -1;
-    return this.driveCommandu(()->targetingFowardSpeed,()->targetingFowardSpeed, ()-> 0);
+    return targetingFowardSpeed;
   }
-   */
+
+  public Command drive_limelight(){
+    final var rot_limelight = controller.calculate(Units.degreesToRadians(LimelightHelpers.getTX("limelight")),0);
+    var rot = rot_limelight;
+
+    final var forward_limelight = autoforward();
+    var xspeed = forward_limelight;
+
+    return this.driveCommandu(()->xspeed, ()-> 0,()->rot);
+  }
+
+
 }
