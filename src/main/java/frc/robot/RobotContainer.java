@@ -32,10 +32,10 @@ public class RobotContainer {
   private static final CommandXboxController m_driverController =
       new CommandXboxController(0);
   private static final Trigger drive = m_driverController.leftBumper();
-    private static final Trigger angle = m_driverController.rightBumper();
-    private static final Trigger button_A = m_driverController.a();
-    private static final Trigger button_b = m_driverController.b();
-    private static final Trigger button_x = m_driverController.x();
+  private static final Trigger angle = m_driverController.rightBumper();
+  private static final Trigger button_A = m_driverController.a();
+  private static final Trigger button_b = m_driverController.b();
+  private static final Trigger button_x = m_driverController.x();
 
     //private static final Trigger button_b = m_driverController.b();
 
@@ -60,19 +60,23 @@ public class RobotContainer {
    * joysticks}.
    */
   private void configureBindings() {
+    
     m_exampleSubsystem.setDefaultCommand(
       m_exampleSubsystem.driveCommandu(()->MathUtil.applyDeadband(
         -m_driverController.getLeftY(),.05), ()-> MathUtil.applyDeadband(-m_driverController.getLeftX(),.15), 
         ()-> m_driverController.getRightX()));
-
+        
     // Schedule `ExampleCommand` when `exampleCondition` changes to `true`
     button_A.onTrue(m_exampleSubsystem.autoAlign());
     button_A.onFalse(m_exampleSubsystem.driveCommandu(()->MathUtil.applyDeadband(-m_driverController.getLeftY(),.05), ()-> MathUtil.applyDeadband(-m_driverController.getLeftX(),.15), ()-> m_driverController.getRightX()));
+    
     button_b.onTrue(m_exampleSubsystem.drive_limelight());
     button_b.onFalse(m_exampleSubsystem.driveCommandu(()->MathUtil.applyDeadband(-m_driverController.getLeftY(),.05), ()-> MathUtil.applyDeadband(-m_driverController.getLeftX(),.15), ()-> m_driverController.getRightX()));
-    button_x.onTrue(m_exampleSubsystem.driveCommandu(()->MathUtil.applyDeadband(-m_driverController.getLeftY(),.05), ()-> MathUtil.applyDeadband(-m_driverController.getLeftX(),.15), ()-> m_exampleSubsystem.rot_follow()));
-   
 
+    button_x.whileTrue(m_exampleSubsystem.driveCommandu(()->MathUtil.applyDeadband(-m_driverController.getLeftY(),.05), ()-> MathUtil.applyDeadband(-m_driverController.getLeftX(),.15), ()-> m_exampleSubsystem.rot_follow()));
+    button_x.whileFalse(m_exampleSubsystem.driveCommandu(()->MathUtil.applyDeadband(-m_driverController.getLeftY(),.05), ()-> MathUtil.applyDeadband(-m_driverController.getLeftX(),.15), ()-> m_driverController.getRightX()));
+    
+  
     // Schedule `exampleMethodCommand` when the Xbox controller's B button is pressed,
     // cancelling on release.
   }

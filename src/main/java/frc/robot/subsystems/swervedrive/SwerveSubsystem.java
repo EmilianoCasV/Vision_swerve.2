@@ -14,8 +14,14 @@ import edu.wpi.first.math.kinematics.ChassisSpeeds;
 import edu.wpi.first.math.kinematics.SwerveDriveKinematics;
 import edu.wpi.first.math.trajectory.Trajectory;
 import edu.wpi.first.math.util.Units;
+import edu.wpi.first.networktables.NetworkTable;
+import edu.wpi.first.networktables.NetworkTableEntry;
+import edu.wpi.first.networktables.NetworkTableInstance;
+import edu.wpi.first.util.sendable.Sendable;
 import edu.wpi.first.wpilibj.DriverStation;
 import edu.wpi.first.wpilibj.Timer;
+import edu.wpi.first.wpilibj.shuffleboard.Shuffleboard;
+import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.SubsystemBase;
 import edu.wpi.first.wpilibj2.command.sysid.SysIdRoutine.Config;
@@ -56,7 +62,7 @@ public class SwerveSubsystem extends SubsystemBase
    */
   public        double      maximumSpeed = Units.feetToMeters(15.68);
   private final PIDController controller = new PIDController(2.1, 0,0.01 ); // P:3
-  private final PIDController forwardPidController = new PIDController(0.1, 0, 0);
+  private final PIDController forwardPidController = new PIDController(0.5, 0, 0.01);
   
   /**
    * Initialize {@link SwerveDrive} with the directory provided.
@@ -204,7 +210,8 @@ public void limelightOdometry(){
   @Override
   public void periodic()
   {
-
+    SmartDashboard.putNumber("Distance from AprilTag", estimating_distance());
+    SmartDashboard.putNumber("Getting_range",getting_range());
     //limelightOdometry();
     
   }
@@ -403,36 +410,63 @@ public void limelightOdometry(){
     swerveDrive.addVisionMeasurement(new Pose2d(3, 3, Rotation2d.fromDegrees(65)), Timer.getFPGATimestamp());
   }
 
+//--------------------------------//
+//---------LIMELIGHT--------------//
+//--------------------------------//
+
   public Command autoAlign(){
     controller.enableContinuousInput(-Math.PI, Math.PI);
-  
     return this.driveCommandu(()->0, ()->0, ()-> controller.calculate(Units.degreesToRadians(LimelightHelpers.getTX("limelight")), 0));
   }
 
   public double rot_follow(){
-    final var rot_limelight = controller.calculate(Units.degreesToRadians(LimelightHelpers.getTX("limelight")),0);
+    final var rot_limelight = controller.calculate(Units.degreesToRadians(
+      LimelightHelpers.getTX("limelight")),0);
     var rot = rot_limelight;
     return rot;
   }
 
- 
-   
-  public double autoforward(){
-    var  targetingFowardSpeed = forwardPidController.calculate(Units.degreesToRadians(LimelightHelpers.getTY("limelight")), 0.5);
+  public double speed_follow(){
+    final var rot_limelight = forwardPidController.calculate(Units.degreesToRadians(
+      LimelightHelpers.getTY("limelight")),12.36);
+    var rot = rot_limelight;
+    return rot;
+  }
+
+  public double range_proportional(){
+    double kp = .3;
+    double targetingFowardSpeed = LimelightHelpers.getTY("limelight")*kp;
     targetingFowardSpeed *=maximumSpeed;
-    targetingFowardSpeed *= -1;
+    targetingFowardSpeed *= -3;
     return targetingFowardSpeed;
   }
 
-  public Command drive_limelight(){
-    final var rot_limelight = controller.calculate(Units.degreesToRadians(LimelightHelpers.getTX("limelight")),0);
-    var rot = rot_limelight;
 
-    final var forward_limelight = autoforward();
-    var xspeed = forward_limelight;
+  public Command drive_limelight(){
+    var rot = rot_follow();
+    var xspeed = speed_follow();
 
     return this.driveCommandu(()->xspeed, ()-> 0,()->rot);
   }
 
+  public double estimating_distance(){
+    double limelightMountAngleDegress = 15.0;
+    double limelightLensHeightInches = 6.3;
+    double goalHeightInches = 20.5;
 
+    double angleToGoalDegrees = limelightMountAngleDegress + LimelightHelpers.getTY("limelight");
+    double angleToGoalRadians = angleToGoalDegrees * (3.14159 / 180.0);
+    double distanceFromLimelightToGoalInches = (goalHeightInches-limelightLensHeightInches) / Math.tan(angleToGoalRadians);
+    double distance = distanceFromLimelightToGoalInches;
+    return distance;
+  } 
+
+  public double getting_range(){
+    double KpDistance = -0.2;
+    double current_distance = estimating_distance();
+    double desired_distance_inches = 25; 
+    double distance_error = desired_distance_inches - current_distance;
+    double driving_adjust = KpDistance * distance_error;
+    return driving_adjust;
+  }
 }
